@@ -29,8 +29,29 @@ import com.android.internal.util.hwkeys.Config.ActionConfig;
 import com.android.internal.util.hwkeys.Config.ButtonConfig;
 
 import android.content.Context;
+import android.content.om.IOverlayManager;
+import android.content.om.OverlayInfo;
+import android.content.res.TypedArray;
+import android.graphics.drawable.Drawable;
+import android.graphics.PorterDuff;
+import android.os.RemoteException;
+import android.os.ServiceManager;
+import android.os.UserHandle;
+import android.support.annotation.VisibleForTesting;
+import android.support.v4.content.res.TypedArrayUtils;
 import android.support.v7.preference.Preference;
+import android.support.v7.preference.PreferenceViewHolder;
+import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import com.android.settings.R;
+import com.android.settings.Utils;
 
 public class ActionPreference extends Preference implements ActionHolder {
     private Defaults mDefaults;
@@ -41,10 +62,29 @@ public class ActionPreference extends Preference implements ActionHolder {
     public ActionPreference(Context context) {
         this(context, null);
     }
+    private final View.OnClickListener mClickListener = v -> performClick(v);
 
-    public ActionPreference(Context context, AttributeSet attrs) {
-        this(context, attrs, 0);
-    }
+    private boolean mAllowDividerAbove;
+    private boolean mAllowDividerBelow;
+
+    private IOverlayManager mOverlayManager;
+
+     public ActionPreference(Context context, AttributeSet attrs) {
+         super(context, attrs);
+ 
+        mOverlayManager = IOverlayManager.Stub.asInterface(
+                ServiceManager.getService(Context.OVERLAY_SERVICE));
+
+         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.Preference);
+ 
+         mAllowDividerAbove = TypedArrayUtils.getBoolean(a, R.styleable.Preference_allowDividerAbove,
+                 R.styleable.Preference_allowDividerAbove, false);
+         mAllowDividerBelow = TypedArrayUtils.getBoolean(a, R.styleable.Preference_allowDividerBelow,
+                 R.styleable.Preference_allowDividerBelow, false);
+         a.recycle();
+ 
+         setLayoutResource(R.layout.action_preference);
+     }
 
     public ActionPreference(Context context, AttributeSet attrs, int defStyleAttr) {
         this(context, attrs, defStyleAttr, 0);
@@ -130,5 +170,16 @@ public class ActionPreference extends Preference implements ActionHolder {
     @Override
     public void setDefaultActionConfig(ActionConfig action) {
         mDefaultAction = action;
+    }
+ 
+    private boolean isUsingWhiteAccent() {
+        OverlayInfo themeInfo = null;
+        try {
+            themeInfo = mOverlayManager.getOverlayInfo("com.accents.white",
+                    UserHandle.USER_CURRENT);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return themeInfo != null && themeInfo.isEnabled();
     }
 }
